@@ -126,6 +126,28 @@ final class ValidationTest extends TestCase
         yield 'numeric fallback' => [static fn (NexiomConnect $sdk) => $sdk->contacts->properties->create(['name' => 'x', 'type' => 'number', 'fallbackValue' => 5])];
         yield 'fallback too long' => [static fn (NexiomConnect $sdk) => $sdk->contacts->properties->update('p', ['fallbackValue' => str_repeat('f', 1001)])];
         yield 'API-style property key' => [static fn (NexiomConnect $sdk) => $sdk->contacts->properties->create(['key' => 'x', 'type' => 'string'])];
+        yield 'unknown template status' => [static fn (NexiomConnect $sdk) => $sdk->templates->list(['status' => 'live'])];
+        yield 'unknown template origin' => [static fn (NexiomConnect $sdk) => $sdk->templates->list(['origin' => 'shared'])];
+        yield 'template page above 10,000' => [static fn (NexiomConnect $sdk) => $sdk->templates->list(['page' => 10_001])];
+        yield 'tenant scope in template list' => [static fn (NexiomConnect $sdk) => $sdk->templates->list(['projectId' => 'prj_1'])];
+        yield 'empty template ID' => [static fn (NexiomConnect $sdk) => $sdk->templates->get('')];
+        yield 'dot-dot template ID on variables' => [static fn (NexiomConnect $sdk) => $sdk->templates->variables('..')];
+        yield 'template versions before zero' => [static fn (NexiomConnect $sdk) => $sdk->templates->versions('tpl_1', ['beforeVersion' => 0])];
+        yield 'template versions limit above 100' => [static fn (NexiomConnect $sdk) => $sdk->templates->versions('tpl_1', ['limit' => 101])];
+        yield 'snake_case template version key' => [static fn (NexiomConnect $sdk) => $sdk->templates->versions('tpl_1', ['before_version' => 2])];
+        yield 'domain create without domain' => [static fn (NexiomConnect $sdk) => $sdk->domains->create([])];
+        yield 'blank domain' => [static fn (NexiomConnect $sdk) => $sdk->domains->create(['domain' => ' '])];
+        yield 'string open tracking' => [static fn (NexiomConnect $sdk) => $sdk->domains->create(['domain' => 'mail.example.com', 'openTracking' => 'yes'])];
+        yield 'snake_case domain field' => [static fn (NexiomConnect $sdk) => $sdk->domains->create(['domain' => 'mail.example.com', 'open_tracking' => true])];
+        yield 'unknown domain status' => [static fn (NexiomConnect $sdk) => $sdk->domains->list(['status' => 'active'])];
+        yield 'domain limit zero' => [static fn (NexiomConnect $sdk) => $sdk->domains->list(['limit' => 0])];
+        yield 'empty domain ID on verify' => [static fn (NexiomConnect $sdk) => $sdk->domains->verify('')];
+        yield 'dot domain ID on delete' => [static fn (NexiomConnect $sdk) => $sdk->domains->delete('.')];
+        yield 'blank suppression search' => [static fn (NexiomConnect $sdk) => $sdk->emails->suppressions->list(['search' => '  '])];
+        yield 'suppression search too long' => [static fn (NexiomConnect $sdk) => $sdk->emails->suppressions->list(['search' => str_repeat('s', 256)])];
+        yield 'empty suppression cursor' => [static fn (NexiomConnect $sdk) => $sdk->emails->suppressions->list(['cursor' => ''])];
+        yield 'suppression cursor too long' => [static fn (NexiomConnect $sdk) => $sdk->emails->suppressions->list(['cursor' => str_repeat('c', 401)])];
+        yield 'suppression limit above 100' => [static fn (NexiomConnect $sdk) => $sdk->emails->suppressions->list(['limit' => 101])];
     }
 
     /**

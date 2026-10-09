@@ -8,7 +8,9 @@ use GuzzleHttp\ClientInterface;
 use Nexiom\Connect\Exceptions\NexiomValidationException;
 use Nexiom\Connect\Internal\Transport;
 use Nexiom\Connect\Services\Contacts;
+use Nexiom\Connect\Services\Domains;
 use Nexiom\Connect\Services\Emails;
+use Nexiom\Connect\Services\Templates;
 use SensitiveParameter;
 
 /**
@@ -20,11 +22,15 @@ use SensitiveParameter;
  */
 final class NexiomConnect
 {
-    public const VERSION = '0.1.0';
+    public const VERSION = '0.2.0';
 
     public readonly Emails $emails;
 
     public readonly Contacts $contacts;
+
+    public readonly Templates $templates;
+
+    public readonly Domains $domains;
 
     /**
      * @param string $apiKey An API key from the Nexiom Connect dashboard. Keep it on the server.
@@ -46,5 +52,7 @@ final class NexiomConnect
 
         $this->emails = new Emails($transport);
         $this->contacts = new Contacts($transport);
+        $this->templates = new Templates($transport);
+        $this->domains = new Domains($transport);
     }
 }

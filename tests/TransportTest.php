@@ -129,13 +129,15 @@ final class TransportTest extends TestCase
             fn () => $sdk->contacts->properties->update('prop_1', ['fallbackValue' => null]),
             fn () => $sdk->contacts->properties->delete('prop_1'),
             fn () => $sdk->emails->reschedule('msg_1', ['scheduledAt' => '2026-10-06T09:00:00+01:00']),
+            fn () => $sdk->domains->create(['domain' => 'mail.example.com']),
+            fn () => $sdk->domains->delete('dom_1'),
         ];
 
         foreach ($actions as $action) {
             self::assertSame(503, self::catch($action)->status);
         }
 
-        self::assertCount(7, $api->calls);
+        self::assertCount(9, $api->calls);
     }
 
     public function testNetworkFailureIsRedacted(): void

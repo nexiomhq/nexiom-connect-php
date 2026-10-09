@@ -46,8 +46,11 @@ src/
     Validate.php              # Shared argument validation
   Services/
     Emails.php                # Sending, scheduling, and email logs
+    EmailSuppressions.php     # Suppressed addresses
     Contacts.php              # Contact CRUD and listing
     ContactProperties.php     # Contact property management
+    Templates.php             # Templates, variables, and versions (read-only)
+    Domains.php               # Sending domains
 tests/
   failure-scenarios.md        # Every failure mode and the test that covers it
   Support/                    # Recording Guzzle handler and built-in server router
@@ -63,7 +66,10 @@ Keep changes within the SDK's supported API surface unless a new feature has bee
 | --- | --- |
 | `$nexiomConnect->emails` | `send($params, $options)`, `cancel($messageId)`, `reschedule($messageId, $params)`, `list($params)`, `get($deliveryId)` |
 | `$nexiomConnect->contacts` | `create($params)`, `list($params)`, `get($id)`, `update($id, $params)`, `delete($id)` |
+| `$nexiomConnect->emails->suppressions` | `list($params)` |
 | `$nexiomConnect->contacts->properties` | `create($params)`, `list($params)`, `update($id, $params)`, `delete($id)` |
+| `$nexiomConnect->templates` | `list($params)`, `get($templateId)`, `variables($templateId)`, `versions($templateId, $params)` |
+| `$nexiomConnect->domains` | `create($params)`, `list($params)`, `get($domainId)`, `verify($domainId)`, `delete($domainId)` |
 
 Every method accepts request options (`timeout`, `maxRetries`) as its final argument. Email sending also accepts `idempotencyKey`.
 
@@ -79,7 +85,7 @@ Every method accepts request options (`timeout`, `maxRetries`) as its final argu
 | Errors | API and transport failures throw `NexiomException`; invalid arguments throw `NexiomValidationException` before a request |
 | Request fields | Preserve the API's field names; map property `name` to `key` and `fallbackValue` to `fallback_value` |
 | Response fields | Preserve API field names, including snake_case fields; dates remain ISO 8601 strings |
-| Retries | Retry reads, idempotent email sends, and cancels only; reuse the email key across attempts |
+| Retries | Retry reads, idempotent email sends, cancels, and domain verification only; reuse the email key across attempts |
 | Secrets | Never keep the API key in a stack frame argument, exception, or debug output |
 | Internals | Classes in `Internal/` and service constructors are `@internal` and may change in any release |
 | Dependencies | Guzzle is the only runtime dependency |
