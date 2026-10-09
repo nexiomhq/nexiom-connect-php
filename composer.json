@@ -1,0 +1,49 @@
+{
+  "name": "nexiom/connect-php",
+  "description": "The official Nexiom Connect SDK for PHP",
+  "type": "library",
+  "license": "Apache-2.0",
+  "keywords": ["nexiom", "nexiom-connect", "email", "contacts", "sdk", "api"],
+  "homepage": "https://github.com/nexiomhq/nexiom-connect-php",
+  "support": {
+    "issues": "https://github.com/nexiomhq/nexiom-connect-php/issues",
+    "source": "https://github.com/nexiomhq/nexiom-connect-php"
+  },
+  "authors": [
+    {
+      "name": "Nexiom Technologies"
+    }
+  ],
+  "require": {
+    "php": "^8.2",
+    "ext-json": "*",
+    "guzzlehttp/guzzle": "^7.9 || ^8.0"
+  },
+  "require-dev": {
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "^11.5 || ^12.5 || ^13.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "Nexiom\\Connect\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Nexiom\\Connect\\Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit",
+    "analyse": "phpstan analyse --memory-limit=1G",
+    "check": [
+      "@composer validate --strict",
+      "@analyse",
+      "@test"
+    ]
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "minimum-stability": "stable"
+}

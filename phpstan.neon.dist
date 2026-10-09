@@ -1,0 +1,13 @@
+parameters:
+  level: max
+  # Public methods validate their arguments at runtime for callers without static analysis.
+  treatPhpDocTypesAsCertain: false
+  paths:
+    - src
+    - tests
+    - examples
+  ignoreErrors:
+    # These tests pass invalid arguments on purpose to check runtime validation.
+    -
+      identifier: argument.type
+      path: tests/ValidationTest.php
