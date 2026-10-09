@@ -79,9 +79,12 @@ final class Emails
         'endDate',
     ];
 
+    public readonly EmailSuppressions $suppressions;
+
     /** @internal */
     public function __construct(private readonly Transport $transport)
     {
+        $this->suppressions = new EmailSuppressions($transport);
     }
 
     /**

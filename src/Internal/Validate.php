@@ -58,6 +58,25 @@ final class Validate
         return $value;
     }
 
+    /**
+     * Returns the value when it is one of $allowed, or null when it is absent.
+     *
+     * @param list<string> $allowed
+     */
+    public static function optionalOneOf(mixed $value, string $name, array $allowed): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (!in_array($value, $allowed, true)) {
+            throw new NexiomValidationException(sprintf('%s must be one of: %s', $name, implode(', ', $allowed)));
+        }
+
+        /** @var string $value */
+        return $value;
+    }
+
     public static function integer(mixed $value, string $name, int $min, int $max): int
     {
         if (!is_int($value) || $value < $min || $value > $max) {

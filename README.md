@@ -110,6 +110,22 @@ foreach ($page['items'] as $delivery) {
 
 `list()` also accepts `source`, `recipient`, `search`, `contactId`, `templateId`, `startDate`, and `endDate`. `get()` takes a delivery ID from `deliveryIds` or `list()`, not a message ID.
 
+### Suppressions
+
+`emails->suppressions->list()` lists the addresses this project cannot send to, alphabetically, with the reason. It requires a full-access API key.
+
+```php
+$page = $nexiomConnect->emails->suppressions->list(['search' => 'example.com', 'limit' => 50]);
+
+foreach ($page['items'] as $suppression) {
+    echo $suppression['email'], ' ', $suppression['reason'], PHP_EOL;
+}
+
+// Next page: pass $page['nextCursor'] as 'cursor' while $page['hasMore'] is true.
+```
+
+Reasons are `hard_bounce`, `complaint`, `unsubscribed`, `invalid`, `manual`, and `temporary_failure`. `search` matches part of an address.
+
 ## Contacts
 
 Contact methods require a full-access API key.
@@ -160,6 +176,56 @@ echo $property['id'], ' ', $property['key'];
 
 Types are `string`, `number`, and `date`. A type can change only while no contact has a value for the property. Fallback values are strings or null. Responses use `key` and `fallback_value`. Optional `type` and case-insensitive `search` filters are applied locally to the complete property list.
 
+## Templates
+
+Template methods are read-only and require a full-access API key. Create and edit templates in the dashboard.
+
+| Method | Description |
+| --- | --- |
+| `list($params = [])` | List templates, most recently updated first |
+| `get($templateId)` | Get a template with its published and draft versions |
+| `variables($templateId)` | List the variables of the draft, or of the published version |
+| `versions($templateId, $params = [])` | List versions, newest first |
+
+```php
+$templates = $nexiomConnect->templates->list(['status' => 'published', 'limit' => 50]);
+
+$template = $nexiomConnect->templates->get($templates['items'][0]['id']);
+
+foreach ($template['published_version']['variables'] ?? [] as $variable) {
+    echo $variable['key'], $variable['required'] ? ' (required)' : '', PHP_EOL;
+}
+```
+
+`list()` accepts `page`, `limit`, `status` (`draft`, `published`, `changes_in_draft`, or `archived`), `search`, `origin` (`custom` or `prebuilt`), and `category`. Sends use the published version, so `published_version.variables` lists exactly what a send needs. `versions()` accepts `limit` and `beforeVersion`: pass the last `version_number` to read older versions.
+
+## Sending domains
+
+Domain methods require a full-access API key.
+
+| Method | Description |
+| --- | --- |
+| `create($params)` | Add a sending subdomain and get its DNS records |
+| `list($params = [])` | List sending domains |
+| `get($domainId)` | Get a domain with its DNS records |
+| `verify($domainId)` | Check the domain's DNS records now |
+| `delete($domainId)` | Delete a domain |
+
+```php
+$domain = $nexiomConnect->domains->create(['domain' => 'mail.example.com']);
+
+foreach ($domain['dns_records'] as $record) {
+    echo $record['record_type'], ' ', $record['name'], ' ', $record['value'], PHP_EOL;
+}
+
+// After publishing the records with your DNS provider:
+$domain = $nexiomConnect->domains->verify($domain['id']);
+
+echo $domain['status'];
+```
+
+Sending domains must be subdomains, such as `mail.example.com`. `create()` also accepts `openTracking` (default `true`). `list()` accepts `page`, `limit`, `status` (`pending`, `verified`, or `failed`), and `search`. A successful `verify()` means the check ran; read `status` before sending.
+
 ## Parameters
 
 Parameters are arrays with the camelCase keys shown above. An unknown key, such as `from_name`, throws `NexiomValidationException` instead of being ignored. A `null` value is treated as not set, except `userId` on contact updates and `fallbackValue`, where `null` clears the value.
@@ -180,7 +246,7 @@ $nexiomConnect = new NexiomConnect(
 $contacts = $nexiomConnect->contacts->list([], ['timeout' => 5]);
 ```
 
-The timeout covers the entire request, including retries. Reads, email sends, and cancels retry network errors and HTTP 408, 429, 500, 502, 503, and 504, honoring `Retry-After`. When the wait would outlast the timeout, the SDK throws that API error at once. Reschedules and contact and property mutations are not automatically retried. The SDK never follows redirects, so your API key is only sent to the configured host.
+The timeout covers the entire request, including retries. Reads, email sends, cancels, and domain verification retry network errors and HTTP 408, 429, 500, 502, 503, and 504, honoring `Retry-After`. When the wait would outlast the timeout, the SDK throws that API error at once. Reschedules, domain creation and deletion, and contact and property mutations are not automatically retried. The SDK never follows redirects, so your API key is only sent to the configured host.
 
 ## Errors
 
@@ -216,6 +282,8 @@ try {
 - [Send an email](./examples/send.php)
 - [Create a contact](./examples/contacts.php)
 - [Create a contact property](./examples/contact-properties.php)
+- [List published templates](./examples/templates.php)
+- [Add a sending domain](./examples/domains.php)
 
 ## Development
 

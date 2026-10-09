@@ -29,6 +29,10 @@ Every way the SDK can fail, and what it must do. Read this before changing behav
 | Contact update without `email` | `NexiomValidationException` | `ValidationTest::testInvalidArguments` |
 | Property type other than `string`, `number`, or `date`; blank or too-long name; fallback that is not null or a string of at most 1,000 characters | `NexiomValidationException` | `ValidationTest::testInvalidArguments` |
 | Property update with no field | `NexiomValidationException` | `ValidationTest::testInvalidArguments` |
+| Template `status` or `origin`, or domain `status`, outside the values the API accepts | `NexiomValidationException` listing the accepted values | `ValidationTest::testInvalidArguments` |
+| Template `beforeVersion` below 1, or a version `limit` outside 1–100 | `NexiomValidationException` | `ValidationTest::testInvalidArguments` |
+| Suppression `search` blank or longer than 255 characters, or `cursor` empty or longer than 400 characters | `NexiomValidationException` | `ValidationTest::testInvalidArguments` |
+| Domain create without `domain`, or with a non-boolean `openTracking` | `NexiomValidationException` | `ValidationTest::testInvalidArguments` |
 | Body that cannot be encoded as JSON (invalid UTF-8, recursion) | `NexiomValidationException` | `ValidationTest::testInvalidArguments` |
 | Empty `metadata`, `properties`, or `templateVariables` array | Sent as a JSON object `{}`, not `[]` | `EmailsTest::testEmptyMapsAreObjects` |
 | Optional parameter passed as `null` | Omitted, except `userId` on contact update and `fallbackValue`, where `null` clears the value | `ContactsTest::testContactMethods`, `ContactPropertiesTest::testPropertyMethods` |
@@ -43,14 +47,15 @@ Every way the SDK can fail, and what it must do. Read this before changing behav
 | 2xx body that is empty, not JSON, `null`, a string, or `{}` | `NexiomException` of kind `protocol`; never retried | `TransportTest::testInvalidSuccessBodiesAreProtocolErrors` |
 | Delivery detail that is not a JSON object | `NexiomException` of kind `protocol` | `EmailsTest::testDeliveryDetailMustBeAnObject` |
 | Property collection that is not a list of objects with a string `key` | `NexiomException` of kind `protocol` | `ContactPropertiesTest::testMalformedCollectionsAreProtocolErrors` |
+| Template variables or versions that are not a list of objects | `NexiomException` of kind `protocol` | `TemplatesTest::testMalformedListsAreProtocolErrors` |
 
 ## Retries and deadlines
 
 | Scenario | Expected | Test |
 | --- | --- | --- |
 | HTTP 408, 429, 500, 502, 503, or 504 on an email send | Retried with the same idempotency key and body | `TransportTest::testEmailSendRetriesWithSameKey` |
-| Same statuses on reads and cancels | Retried up to `maxRetries` | `TransportTest::testReadsRetryBoundedTimes`, `EmailsTest::testCancelAndDeliveryReadsRetry` |
-| Same statuses on contact or property mutations and reschedules | Never retried, whatever `maxRetries` is | `TransportTest::testMutationsNeverRetry` |
+| Same statuses on reads, cancels, and domain verification | Retried up to `maxRetries` | `TransportTest::testReadsRetryBoundedTimes`, `EmailsTest::testCancelAndDeliveryReadsRetry`, `DomainsTest::testVerifyRetries` |
+| Same statuses on contact or property mutations, reschedules, and domain creation or deletion | Never retried, whatever `maxRetries` is | `TransportTest::testMutationsNeverRetry` |
 | Network failure | `NexiomException` of kind `network`; the transport exception is not retained, so the API key cannot leak through it | `TransportTest::testNetworkFailureIsRedacted` |
 | Network failure after a retried HTTP error | Response metadata from the earlier attempt is cleared | `TransportTest::testNetworkFailureClearsStaleMetadata` |
 | `Retry-After` (seconds or HTTP date) that ends after the deadline | The API error is thrown at once instead of waiting into a timeout | `TransportTest::testRetryAfterBeyondDeadlineFailsFast` |
