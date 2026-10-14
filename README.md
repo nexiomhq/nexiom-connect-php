@@ -226,23 +226,26 @@ echo $domain['status'];
 
 Sending domains must be subdomains, such as `mail.example.com`. `create()` also accepts `openTracking` (default `true`). `list()` accepts `page`, `limit`, `status` (`pending`, `verified`, or `failed`), and `search`. A successful `verify()` means the check ran; read `status` before sending.
 
-## WhatsApp
+## Messaging
 
-Send an approved WhatsApp template from a connected number. The API key needs the `whatsapp.send` or `whatsapp.full_access` permission.
+Send messages on a messaging channel with one method; `channel` selects the parameters. WhatsApp is the first channel. The API key needs the `whatsapp.send` or `whatsapp.full_access` permission to send WhatsApp messages.
 
 | Method | Description |
 | --- | --- |
-| `messages->send($params, $options = [])` | Send a template message to one recipient |
-| `messages->get($messageId)` | Get a message with its status, cost, and content |
+| `messaging->send($params, $options = [])` | Send a message to one recipient |
+| `messaging->get($messageId)` | Get a message with its status, cost, and content |
 
 ```php
-$message = $nexiomConnect->whatsapp->messages->send(
+$message = $nexiomConnect->messaging->send(
     [
-        'sender' => '+213555000111',
+        'channel' => 'whatsapp',
+        'from' => '+213555000111',
         'to' => '+213555123456',
-        'templateId' => 'wat_your_template_id',
-        'variables' => [
-            'body' => [1 => 'Amina', 2 => 'A-1234'],
+        'template' => [
+            'id' => 'wat_your_template_id',
+            'variables' => [
+                'body' => [1 => 'Amina', 2 => 'A-1234'],
+            ],
         ],
     ],
     ['idempotencyKey' => 'order-A-1234-shipped'],
@@ -251,11 +254,11 @@ $message = $nexiomConnect->whatsapp->messages->send(
 echo $message['id'], ' ', $message['status'];
 ```
 
-`sender` is the phone number of a connected WhatsApp number and `to` the recipient, both in E.164 format. `variables['header']` and `variables['body']` give a string for every variable of the template, keyed by its number (`1`) or name (`'first_name'`); they are always sent as JSON objects. Omit `variables` for a template without variables.
+For WhatsApp, `from` is the phone number of a connected WhatsApp number and `to` the recipient, both in E.164 format. `template['id']` is an approved template, and `template['variables']['header']` and `['body']` give a string for every variable of the template, keyed by its number (`1`) or name (`'first_name'`); they are always sent as JSON objects. Omit `variables` for a template without variables.
 
 Every send carries an idempotency key; the SDK generates one when you don't pass `idempotencyKey`, and it is on `$e->response->idempotencyKey` when a send fails. Sends are retried with the same key, so a message is sent at most once. A send with a key already used returns the original message as it is now.
 
-A sent message usually has the status `accepted`: WhatsApp accepted it, which is not delivery yet. `uncertain` means WhatsApp did not confirm it; it is never resent automatically. Follow the status with `messages->get($messageId)` or the `whatsapp.message.*` webhooks.
+A sent WhatsApp message usually has the status `accepted`: WhatsApp accepted it, which is not delivery yet. `uncertain` means WhatsApp did not confirm it; it is never resent automatically. Follow the status with `messaging->get($messageId)` or the `whatsapp.message.*` webhooks.
 
 ## Webhooks
 
@@ -317,7 +320,7 @@ $nexiomConnect = new NexiomConnect(
 $contacts = $nexiomConnect->contacts->list([], ['timeout' => 5]);
 ```
 
-The timeout covers the entire request, including retries. Reads, email and WhatsApp sends, cancels, and domain verification retry network errors and HTTP 408, 429, 500, 502, 503, and 504, honoring `Retry-After`. When the wait would outlast the timeout, the SDK throws that API error at once. Reschedules, domain creation and deletion, and contact and property mutations are not automatically retried. The SDK never follows redirects, so your API key is only sent to the configured host.
+The timeout covers the entire request, including retries. Reads, email and message sends, cancels, and domain verification retry network errors and HTTP 408, 429, 500, 502, 503, and 504, honoring `Retry-After`. When the wait would outlast the timeout, the SDK throws that API error at once. Reschedules, domain creation and deletion, and contact and property mutations are not automatically retried. The SDK never follows redirects, so your API key is only sent to the configured host.
 
 ## Errors
 
@@ -355,7 +358,7 @@ try {
 - [Create a contact property](./examples/contact-properties.php)
 - [List published templates](./examples/templates.php)
 - [Add a sending domain](./examples/domains.php)
-- [Send a WhatsApp message](./examples/whatsapp.php)
+- [Send a WhatsApp message](./examples/messaging.php)
 - [Verify a webhook request](./examples/webhooks.php)
 
 ## Development

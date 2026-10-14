@@ -64,18 +64,19 @@ Every way the SDK can fail, and what it must do. Read this before changing behav
 | Request times out after the SDK generated an idempotency key | The key is on `$e->response->idempotencyKey`, so the caller can retry safely | `HttpServerTest::testSlowServerTimesOut` |
 | Per-request `timeout` or `maxRetries` | Overrides the client default for that call only | `TransportTest::testPerRequestOverrides` |
 
-## WhatsApp messages
+## Messaging
 
 | Scenario | Expected | Test |
 | --- | --- | --- |
-| `sender` or `to` missing, or not an E.164 number (a local number, a sender ID such as `was_1`) | `NexiomValidationException` before any request | `WhatsAppMessagesTest::testInvalidArgumentsFailBeforeAnyRequest` |
-| `senderId`, `orgId`, or another unknown key; a `variables` key other than `header` or `body` | `NexiomValidationException` naming the key | `WhatsAppMessagesTest::testInvalidArgumentsFailBeforeAnyRequest` |
-| Variables given as a list, a key that is not a variable number or name, or a value that is not a string or is longer than 1,024 characters | `NexiomValidationException` | `WhatsAppMessagesTest::testInvalidArgumentsFailBeforeAnyRequest` |
-| Numbered variables written as PHP integer keys (`[1 => 'Amina']`) | Sent as a JSON object `{"1":"Amina"}`; an empty map is sent as `{}` | `WhatsAppMessagesTest::testSendPostsTheTemplateSendWithAnIdempotencyKey` |
-| Idempotency key with whitespace, non-ASCII, or more than 200 characters | `NexiomValidationException` | `WhatsAppMessagesTest::testInvalidArgumentsFailBeforeAnyRequest` |
-| HTTP 408, 429, 500, 502, 503, or 504 on a send | Retried with the same idempotency key and body | `WhatsAppMessagesTest::testSendsAndReadsRetryTransientFailures` |
-| HTTP 409 or 422 on a send, such as `whatsapp_template_not_approved` | `NexiomException` with the status and code; never retried | `WhatsAppMessagesTest::testApiRefusalsAreNotRetried` |
-| A send or message read whose `data` is not a message object | `NexiomException` of kind `protocol` | `WhatsAppMessagesTest::testMalformedMessagesAreProtocolErrors` |
+| `channel` missing, or a channel not available yet such as `sms` | `NexiomValidationException` listing the channels, before any request | `MessagingTest::testInvalidArgumentsFailBeforeAnyRequest` |
+| `from` or `to` missing, or not an E.164 number (a local number, a sender ID such as `was_1`) | `NexiomValidationException` before any request | `MessagingTest::testInvalidArgumentsFailBeforeAnyRequest` |
+| `template` missing or without an `id`; an unknown key such as `senderId`, `sender`, `templateId`, or `orgId`; a template key other than `id` or `variables`; a variables key other than `header` or `body` | `NexiomValidationException` naming the key | `MessagingTest::testInvalidArgumentsFailBeforeAnyRequest` |
+| Variables given as a list, a key that is not a variable number or name, or a value that is not a string or is longer than 1,024 characters | `NexiomValidationException` | `MessagingTest::testInvalidArgumentsFailBeforeAnyRequest` |
+| Numbered variables written as PHP integer keys (`[1 => 'Amina']`) | Sent as a JSON object `{"1":"Amina"}`; an empty map is sent as `{}` | `MessagingTest::testSendPostsTheTemplateSendWithAnIdempotencyKey` |
+| Idempotency key with whitespace, non-ASCII, or more than 200 characters | `NexiomValidationException` | `MessagingTest::testInvalidArgumentsFailBeforeAnyRequest` |
+| HTTP 408, 429, 500, 502, 503, or 504 on a send | Retried with the same idempotency key and body | `MessagingTest::testSendsAndReadsRetryTransientFailures` |
+| HTTP 409 or 422 on a send, such as `whatsapp_template_not_approved` | `NexiomException` with the status and code; never retried | `MessagingTest::testApiRefusalsAreNotRetried` |
+| A send or message read whose `data` is not a message of a known channel | `NexiomException` of kind `protocol` | `MessagingTest::testMalformedMessagesAreProtocolErrors` |
 
 ## Webhook verification
 

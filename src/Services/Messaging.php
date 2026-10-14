@@ -11,9 +11,9 @@ use Nexiom\Connect\Internal\Validate;
 use stdClass;
 
 /**
- * Send WhatsApp template messages and read them back.
+ * Send messages on any messaging channel, and read them back. `channel` selects the fields.
  *
- * @phpstan-type WhatsAppMessage array{
+ * @phpstan-type Message array{
  *     id: string,
  *     channel: 'whatsapp',
  *     status: 'sending'|'accepted'|'sent'|'delivered'|'read'|'failed'|'uncertain',
@@ -34,8 +34,8 @@ use stdClass;
  *     read_at: string|null,
  *     failed_at: string|null,
  * }
- * @phpstan-type WhatsAppContentSegment array{text: string|null, variable: string|null}
- * @phpstan-type WhatsAppMessageDetails array{
+ * @phpstan-type ContentSegment array{text: string|null, variable: string|null}
+ * @phpstan-type MessageDetails array{
  *     id: string,
  *     channel: 'whatsapp',
  *     status: 'sending'|'accepted'|'sent'|'delivered'|'read'|'failed'|'uncertain',
@@ -56,18 +56,23 @@ use stdClass;
  *     read_at: string|null,
  *     failed_at: string|null,
  *     content: array{
- *         header: list<WhatsAppContentSegment>|null,
- *         body: list<WhatsAppContentSegment>|null,
+ *         header: list<ContentSegment>|null,
+ *         body: list<ContentSegment>|null,
  *         footer: string|null,
  *         buttons: list<string>,
  *     }|null,
  * }
  */
-final class WhatsAppMessages
+final class Messaging
 {
-    private const PATH = '/v1/messaging/whatsapp/messages';
+    private const PATH = '/v1/messaging/messages';
 
-    private const SEND_KEYS = ['sender', 'to', 'templateId', 'variables'];
+    /** Messaging channels. New channels are added here, with their own parameters. */
+    private const CHANNELS = ['whatsapp'];
+
+    private const WHATSAPP_KEYS = ['channel', 'from', 'to', 'template'];
+
+    private const TEMPLATE_KEYS = ['id', 'variables'];
 
     private const E164 = '/^\+[1-9]\d{6,14}$/';
 
@@ -77,54 +82,73 @@ final class WhatsAppMessages
     }
 
     /**
-     * Sends an approved template from a connected number, named by its phone number.
+     * Sends a message on the channel named by `channel`.
      *
-     * Acceptance by WhatsApp is not delivery: follow the message with `get()` or webhooks.
+     * WhatsApp sends an approved template from a connected number, named by its phone number in
+     * `from`. Acceptance by WhatsApp is not delivery: follow the message with `get()` or webhooks.
      * Without an `idempotencyKey` option, the SDK generates one and reuses it for automatic
      * retries, so a message is sent at most once.
      *
      * @param array{
-     *     sender: string,
+     *     channel: 'whatsapp',
+     *     from: string,
      *     to: string,
-     *     templateId: string,
-     *     variables?: array{header?: array<array-key, string>|null, body?: array<array-key, string>|null}|null,
+     *     template: array{
+     *         id: string,
+     *         variables?: array{header?: array<array-key, string>|null, body?: array<array-key, string>|null}|null,
+     *     },
      * } $params
      * @param array{idempotencyKey?: string, timeout?: float|int, maxRetries?: int} $options
-     * @return WhatsAppMessage
+     * @return Message
      *
      * @throws NexiomException
      * @throws NexiomValidationException
      */
     public function send(array $params, array $options = []): array
     {
-        Validate::keys($params, self::SEND_KEYS, 'WhatsApp message parameter');
+        $channel = $params['channel'] ?? null;
+
+        if (!in_array($channel, self::CHANNELS, true)) {
+            throw new NexiomValidationException('channel must be one of: ' . implode(', ', self::CHANNELS));
+        }
+
+        Validate::keys($params, self::WHATSAPP_KEYS, 'WhatsApp message parameter');
+
+        $template = $params['template'] ?? null;
+
+        if (!is_array($template) || array_is_list($template)) {
+            throw new NexiomValidationException('template must be an array with an id and variables');
+        }
+
+        Validate::keys($template, self::TEMPLATE_KEYS, 'template parameter');
 
         $body = [
-            'sender' => self::phoneNumber($params['sender'] ?? null, 'sender'),
+            'channel' => $channel,
+            'from' => self::phoneNumber($params['from'] ?? null, 'from'),
             'to' => self::phoneNumber($params['to'] ?? null, 'to'),
-            'templateId' => Validate::nonEmpty($params['templateId'] ?? null, 'templateId'),
+            'template' => [
+                'id' => Validate::nonEmpty($template['id'] ?? null, 'template.id'),
+            ],
         ];
 
-        $variables = $params['variables'] ?? null;
+        $variables = $template['variables'] ?? null;
 
         if ($variables !== null) {
             if (!is_array($variables) || ($variables !== [] && array_is_list($variables))) {
-                throw new NexiomValidationException('variables must be an array with header and body values');
+                throw new NexiomValidationException('template.variables must be an array with header and body values');
             }
 
-            Validate::keys($variables, ['header', 'body'], 'WhatsApp variables');
+            Validate::keys($variables, ['header', 'body'], 'template variables');
 
-            $body['variables'] = [];
+            $values = [];
 
             foreach (['header', 'body'] as $component) {
                 if (array_key_exists($component, $variables) && $variables[$component] !== null) {
-                    $body['variables'][$component] = self::values($variables[$component], "variables.{$component}");
+                    $values[$component] = self::values($variables[$component], "template.variables.{$component}");
                 }
             }
 
-            if ($body['variables'] === []) {
-                $body['variables'] = new stdClass();
-            }
+            $body['template']['variables'] = $values === [] ? new stdClass() : $values;
         }
 
         $key = $options['idempotencyKey'] ?? bin2hex(random_bytes(16));
@@ -136,7 +160,7 @@ final class WhatsAppMessages
 
         unset($options['idempotencyKey']);
 
-        /** @var WhatsAppMessage */
+        /** @var Message */
         return $this->transport->request(
             'POST',
             self::PATH,
@@ -151,7 +175,7 @@ final class WhatsAppMessages
      * Fetches one message with its current status, cost, and the content the recipient received.
      *
      * @param array{timeout?: float|int, maxRetries?: int} $options
-     * @return WhatsAppMessageDetails
+     * @return MessageDetails
      *
      * @throws NexiomException
      * @throws NexiomValidationException
@@ -160,7 +184,7 @@ final class WhatsAppMessages
     {
         $path = self::PATH . '/' . Validate::resourceId($messageId, 'messageId');
 
-        /** @var WhatsAppMessageDetails */
+        /** @var MessageDetails */
         return $this->transport->request('GET', $path, null, $options, accepts: self::isMessage(...));
     }
 
@@ -211,6 +235,6 @@ final class WhatsAppMessages
      */
     private static function isMessage(array $data): bool
     {
-        return is_string($data['id'] ?? null) && ($data['channel'] ?? null) === 'whatsapp';
+        return is_string($data['id'] ?? null) && in_array($data['channel'] ?? null, self::CHANNELS, true);
     }
 }

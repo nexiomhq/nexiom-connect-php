@@ -10,9 +10,9 @@ use Nexiom\Connect\Internal\Transport;
 use Nexiom\Connect\Services\Contacts;
 use Nexiom\Connect\Services\Domains;
 use Nexiom\Connect\Services\Emails;
+use Nexiom\Connect\Services\Messaging;
 use Nexiom\Connect\Services\Templates;
 use Nexiom\Connect\Services\Webhooks;
-use Nexiom\Connect\Services\WhatsApp;
 use SensitiveParameter;
 
 /**
@@ -24,7 +24,7 @@ use SensitiveParameter;
  */
 final class NexiomConnect
 {
-    public const VERSION = '0.3.0';
+    public const VERSION = '0.4.0';
 
     public readonly Emails $emails;
 
@@ -34,7 +34,8 @@ final class NexiomConnect
 
     public readonly Domains $domains;
 
-    public readonly WhatsApp $whatsapp;
+    /** Messages on every messaging channel, such as WhatsApp. */
+    public readonly Messaging $messaging;
 
     /** Webhook verification; makes no network request. */
     public readonly Webhooks $webhooks;
@@ -61,7 +62,7 @@ final class NexiomConnect
         $this->contacts = new Contacts($transport);
         $this->templates = new Templates($transport);
         $this->domains = new Domains($transport);
-        $this->whatsapp = new WhatsApp($transport);
+        $this->messaging = new Messaging($transport);
         $this->webhooks = new Webhooks();
     }
 }
