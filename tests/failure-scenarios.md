@@ -63,3 +63,29 @@ Every way the SDK can fail, and what it must do. Read this before changing behav
 | Server does not answer before the deadline | `NexiomException` of kind `timeout`; the deadline covers every attempt and wait | `HttpServerTest::testSlowServerTimesOut`, `TransportTest::testPerRequestOverrides` |
 | Request times out after the SDK generated an idempotency key | The key is on `$e->response->idempotencyKey`, so the caller can retry safely | `HttpServerTest::testSlowServerTimesOut` |
 | Per-request `timeout` or `maxRetries` | Overrides the client default for that call only | `TransportTest::testPerRequestOverrides` |
+
+## WhatsApp messages
+
+| Scenario | Expected | Test |
+| --- | --- | --- |
+| `sender` or `to` missing, or not an E.164 number (a local number, a sender ID such as `was_1`) | `NexiomValidationException` before any request | `WhatsAppMessagesTest::testInvalidArgumentsFailBeforeAnyRequest` |
+| `senderId`, `orgId`, or another unknown key; a `variables` key other than `header` or `body` | `NexiomValidationException` naming the key | `WhatsAppMessagesTest::testInvalidArgumentsFailBeforeAnyRequest` |
+| Variables given as a list, a key that is not a variable number or name, or a value that is not a string or is longer than 1,024 characters | `NexiomValidationException` | `WhatsAppMessagesTest::testInvalidArgumentsFailBeforeAnyRequest` |
+| Numbered variables written as PHP integer keys (`[1 => 'Amina']`) | Sent as a JSON object `{"1":"Amina"}`; an empty map is sent as `{}` | `WhatsAppMessagesTest::testSendPostsTheTemplateSendWithAnIdempotencyKey` |
+| Idempotency key with whitespace, non-ASCII, or more than 200 characters | `NexiomValidationException` | `WhatsAppMessagesTest::testInvalidArgumentsFailBeforeAnyRequest` |
+| HTTP 408, 429, 500, 502, 503, or 504 on a send | Retried with the same idempotency key and body | `WhatsAppMessagesTest::testSendsAndReadsRetryTransientFailures` |
+| HTTP 409 or 422 on a send, such as `whatsapp_template_not_approved` | `NexiomException` with the status and code; never retried | `WhatsAppMessagesTest::testApiRefusalsAreNotRetried` |
+| A send or message read whose `data` is not a message object | `NexiomException` of kind `protocol` | `WhatsAppMessagesTest::testMalformedMessagesAreProtocolErrors` |
+
+## Webhook verification
+
+| Scenario | Expected | Test |
+| --- | --- | --- |
+| `x-nexiom-timestamp` or `x-nexiom-signature` missing or blank | `NexiomWebhookVerificationException` with reason `missing_headers` | `WebhooksTest::testMissingOrMalformedHeadersAreRefused` |
+| Timestamp that is not whole Unix seconds, or too large to compare | Reason `invalid_timestamp` | `WebhooksTest::testMissingOrMalformedHeadersAreRefused` |
+| Timestamp more than the tolerance (default 300 seconds) before or after now | Reason `timestamp_out_of_tolerance`; a custom `tolerance` widens or narrows it | `WebhooksTest::testTimestampsOutsideTheToleranceAreRefused` |
+| Body, timestamp, secret, or signature changed, including re-encoded JSON or a secret without its `whsec_` prefix | Reason `invalid_signature`; the comparison takes constant time | `WebhooksTest::testChangedRequestsAreRefused` |
+| Correctly signed body that is not JSON, or not an envelope with `id`, `type`, integer `schema_version`, object `data`, and `created_at` | Reason `invalid_payload` | `WebhooksTest::testSignedBodiesThatAreNotEventsAreRefused` |
+| Headers from `getallheaders()` or Laravel's `$request->headers->all()` (lists), in any letter case | Read case-insensitively; the first value is used | `WebhooksTest::testHeadersAreReadCaseInsensitivelyFromStringsAndLists` |
+| Empty secret or a tolerance below 1 | `NexiomValidationException`, not a verification failure | `WebhooksTest::testInvalidArgumentsAreProgrammingErrors` |
+| Event type the SDK does not know yet | Verified and returned | `WebhooksTest::testSignedRequestsReturnTheirEvent` |

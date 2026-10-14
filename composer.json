@@ -3,7 +3,7 @@
   "description": "The official Nexiom Connect SDK for PHP",
   "type": "library",
   "license": "Apache-2.0",
-  "keywords": ["nexiom", "nexiom-connect", "email", "contacts", "sdk", "api"],
+  "keywords": ["nexiom", "nexiom-connect", "email", "whatsapp", "contacts", "webhooks", "sdk", "api"],
   "homepage": "https://github.com/nexiomhq/nexiom-connect-php",
   "support": {
     "issues": "https://github.com/nexiomhq/nexiom-connect-php/issues",

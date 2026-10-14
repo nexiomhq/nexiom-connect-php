@@ -226,6 +226,77 @@ echo $domain['status'];
 
 Sending domains must be subdomains, such as `mail.example.com`. `create()` also accepts `openTracking` (default `true`). `list()` accepts `page`, `limit`, `status` (`pending`, `verified`, or `failed`), and `search`. A successful `verify()` means the check ran; read `status` before sending.
 
+## WhatsApp
+
+Send an approved WhatsApp template from a connected number. The API key needs the `whatsapp.send` or `whatsapp.full_access` permission.
+
+| Method | Description |
+| --- | --- |
+| `messages->send($params, $options = [])` | Send a template message to one recipient |
+| `messages->get($messageId)` | Get a message with its status, cost, and content |
+
+```php
+$message = $nexiomConnect->whatsapp->messages->send(
+    [
+        'sender' => '+213555000111',
+        'to' => '+213555123456',
+        'templateId' => 'wat_your_template_id',
+        'variables' => [
+            'body' => [1 => 'Amina', 2 => 'A-1234'],
+        ],
+    ],
+    ['idempotencyKey' => 'order-A-1234-shipped'],
+);
+
+echo $message['id'], ' ', $message['status'];
+```
+
+`sender` is the phone number of a connected WhatsApp number and `to` the recipient, both in E.164 format. `variables['header']` and `variables['body']` give a string for every variable of the template, keyed by its number (`1`) or name (`'first_name'`); they are always sent as JSON objects. Omit `variables` for a template without variables.
+
+Every send carries an idempotency key; the SDK generates one when you don't pass `idempotencyKey`, and it is on `$e->response->idempotencyKey` when a send fails. Sends are retried with the same key, so a message is sent at most once. A send with a key already used returns the original message as it is now.
+
+A sent message usually has the status `accepted`: WhatsApp accepted it, which is not delivery yet. `uncertain` means WhatsApp did not confirm it; it is never resent automatically. Follow the status with `messages->get($messageId)` or the `whatsapp.message.*` webhooks.
+
+## Webhooks
+
+`webhooks->constructEvent($payload, $headers, $secret, tolerance: 300)` checks a webhook request's signature and timestamp, then returns the event as an array. It makes no network request.
+
+```php
+// routes/api.php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Nexiom\Connect\Exceptions\NexiomWebhookVerificationException;
+use Nexiom\Connect\NexiomConnect;
+
+Route::post('/webhooks/nexiom', function (Request $request) {
+    $nexiomConnect = new NexiomConnect(config('services.nexiom.key'));
+
+    try {
+        $event = $nexiomConnect->webhooks->constructEvent(
+            $request->getContent(),
+            $request->headers->all(),
+            config('services.nexiom.webhook_secret'),
+        );
+    } catch (NexiomWebhookVerificationException $exception) {
+        return response($exception->reason, 400);
+    }
+
+    if ($event['type'] === 'email.bounced') {
+        logger()->warning('Bounced: ' . $event['data']['recipient']);
+    }
+
+    return response()->noContent();
+});
+```
+
+- `$payload` is the raw request body, exactly as received: `$request->getContent()` in Laravel or Symfony, or `file_get_contents('php://input')`. Decoded and re-encoded JSON does not match the signature.
+- `$headers` accepts `$request->headers->all()` (lists of values) or `getallheaders()`; names are case-insensitive.
+- `$secret` is the endpoint's signing secret, starting with `whsec_`.
+- `tolerance` is the allowed clock difference in seconds (default 300).
+
+A request that fails verification throws `Nexiom\Connect\Exceptions\NexiomWebhookVerificationException`, whose `reason` is `missing_headers`, `invalid_timestamp`, `timestamp_out_of_tolerance`, `invalid_signature`, or `invalid_payload` (also available as constants on the class). Respond `400` and do not process it.
+
 ## Parameters
 
 Parameters are arrays with the camelCase keys shown above. An unknown key, such as `from_name`, throws `NexiomValidationException` instead of being ignored. A `null` value is treated as not set, except `userId` on contact updates and `fallbackValue`, where `null` clears the value.
@@ -246,7 +317,7 @@ $nexiomConnect = new NexiomConnect(
 $contacts = $nexiomConnect->contacts->list([], ['timeout' => 5]);
 ```
 
-The timeout covers the entire request, including retries. Reads, email sends, cancels, and domain verification retry network errors and HTTP 408, 429, 500, 502, 503, and 504, honoring `Retry-After`. When the wait would outlast the timeout, the SDK throws that API error at once. Reschedules, domain creation and deletion, and contact and property mutations are not automatically retried. The SDK never follows redirects, so your API key is only sent to the configured host.
+The timeout covers the entire request, including retries. Reads, email and WhatsApp sends, cancels, and domain verification retry network errors and HTTP 408, 429, 500, 502, 503, and 504, honoring `Retry-After`. When the wait would outlast the timeout, the SDK throws that API error at once. Reschedules, domain creation and deletion, and contact and property mutations are not automatically retried. The SDK never follows redirects, so your API key is only sent to the configured host.
 
 ## Errors
 
@@ -260,7 +331,7 @@ Methods return the response data as an array. API and transport failures throw `
 | `errorCode` | Machine-readable API error code, such as `rate_limited` |
 | `requestId` | Request ID to share with support |
 | `details` | Additional API error details, such as validation failures |
-| `response` | Status, headers, request ID, and the email idempotency key |
+| `response` | Status, headers, request ID, and the send's idempotency key |
 
 Invalid SDK configuration or locally validated arguments throw `Nexiom\Connect\Exceptions\NexiomValidationException` before any request is sent.
 
@@ -284,6 +355,8 @@ try {
 - [Create a contact property](./examples/contact-properties.php)
 - [List published templates](./examples/templates.php)
 - [Add a sending domain](./examples/domains.php)
+- [Send a WhatsApp message](./examples/whatsapp.php)
+- [Verify a webhook request](./examples/webhooks.php)
 
 ## Development
 
