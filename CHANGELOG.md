@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 — Unreleased
+## 0.4.0 — 2026-10-14
 
 - Add `webhooks->constructEvent($payload, $headers, $secret, tolerance: 300)`. It verifies a webhook request's HMAC-SHA256 signature and timestamp, and returns the event as an array. Failures throw `NexiomWebhookVerificationException` with a `reason`. Headers may come from `getallheaders()` or Laravel's `$request->headers->all()`.
 - Add `messaging->send` and `messaging->get`, one interface for every messaging channel. `channel` selects the parameters: `['channel' => 'whatsapp', 'from' => ..., 'to' => ..., 'template' => ['id' => ..., 'variables' => ...]]` sends an approved WhatsApp template from a connected number, named by its phone number. Sends always carry an idempotency key and retry with it; reads retry.
