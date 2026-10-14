@@ -10,7 +10,9 @@ use Nexiom\Connect\Internal\Transport;
 use Nexiom\Connect\Services\Contacts;
 use Nexiom\Connect\Services\Domains;
 use Nexiom\Connect\Services\Emails;
+use Nexiom\Connect\Services\Messaging;
 use Nexiom\Connect\Services\Templates;
+use Nexiom\Connect\Services\Webhooks;
 use SensitiveParameter;
 
 /**
@@ -22,7 +24,7 @@ use SensitiveParameter;
  */
 final class NexiomConnect
 {
-    public const VERSION = '0.2.0';
+    public const VERSION = '0.4.0';
 
     public readonly Emails $emails;
 
@@ -32,11 +34,17 @@ final class NexiomConnect
 
     public readonly Domains $domains;
 
+    /** Messages on every messaging channel, such as WhatsApp. */
+    public readonly Messaging $messaging;
+
+    /** Webhook verification; makes no network request. */
+    public readonly Webhooks $webhooks;
+
     /**
      * @param string $apiKey An API key from the Nexiom Connect dashboard. Keep it on the server.
      * @param string|null $baseUrl API root without a version prefix. Default: https://api-connect.nxiom.com/api.
      * @param float|int $timeout Total request deadline in seconds, including retries. Default: 30.
-     * @param int $maxRetries Additional attempts for reads, idempotent email sends, and cancels only. Default: 2.
+     * @param int $maxRetries Additional attempts for reads, idempotent sends, cancels, and domain verification only. Default: 2.
      * @param ClientInterface|null $httpClient A Guzzle client for proxies, instrumentation, or testing.
      *
      * @throws NexiomValidationException
@@ -54,5 +62,7 @@ final class NexiomConnect
         $this->contacts = new Contacts($transport);
         $this->templates = new Templates($transport);
         $this->domains = new Domains($transport);
+        $this->messaging = new Messaging($transport);
+        $this->webhooks = new Webhooks();
     }
 }
